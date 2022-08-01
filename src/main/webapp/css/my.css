@@ -1,0 +1,41 @@
+h1 {
+    color: indianred;
+}
+
+table.players_table {
+    table-layout: fixed;
+    width: 100%;
+    border: 3px solid #3b3b3b;
+    text-align: center;
+    border-collapse: collapse;
+    background-color: #94a3a1;
+}
+
+tbody.players_table_body tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+tbody.players_table_body tr:nth-child(even) {
+    background-color: #cbcbcb;
+}
+
+table.createNewAccountTable {
+    table-layout: fixed;
+    width: 30%;
+    border: 3px solid #3b3b3b;
+    border-collapse: collapse;
+    background-color: #94a3a1;
+}
+
+img.editdelete {
+    width: 25px;
+    height: 25px;
+}
+
+input {
+    width: 96%;
+}
+
+select.accountSelect {
+    width: 100%;
+}

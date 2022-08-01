@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <title>RPG</title>
+    <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
+    <link rel="stylesheet" href="my1.css" type="text/css">
+    <style type="text/css">
+        h1 {
+            color: indianred;
+        }
+
+        table.players_table {
+            table-layout: fixed;
+            width: 100%;
+            border: 3px solid #3b3b3b;
+            text-align: center;
+            border-collapse: collapse;
+            background-color: #94a3a1;
+        }
+
+        tbody.players_table_body tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+
+        tbody.players_table_body tr:nth-child(even) {
+            background-color: #cbcbcb;
+        }
+
+        table.createNewAccountTable {
+            table-layout: fixed;
+            width: 30%;
+            border: 3px solid #3b3b3b;
+            border-collapse: collapse;
+            background-color: #94a3a1;
+        }
+
+        img.editdelete {
+            width: 25px;
+            height: 25px;
+        }
+
+        input {
+            width: 96%;
+        }
+
+        select.accountSelect {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+<h1>RPG admin panel</h1>
+<div>
+    <h2>Account list:</h2>
+</div>
+<div style="padding-bottom: 3px">
+    <b>Count per page:</b>
+    <select id="playersPerPageSelect" onChange="getPlayers(1)">
+        <option>3</option>
+        <option>7</option>
+        <option>12</option>
+        <option>20</option>
+    </select>
+</div>
+
+<div>
+    <table id="player_table" class="players_table">
+        <thead class="playersTableHead">
+        <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Title</th>
+            <th>Race</th>
+            <th>Profession</th>
+            <th>Level</th>
+            <th>Birthday</th>
+            <th>Banned</th>
+            <th>Edit</th>
+            <th>Delete</th>
+        </tr>
+        </thead>
+        <tbody id="players_table_body" class="players_table_body">
+        </tbody>
+    </table>
+    <div id="pagging_div" style="padding-top: 5px">
+
+    </div>
+
+    <div id="createNewAccountDiv"></div>
+
+</div>
+<script>
+    RACE_ARR = ['HUMAN', 'DWARF', 'ELF', 'GIANT', 'ORC', 'TROLL', 'HOBBIT'];
+    PROFESSION_ARR = ['WARRIOR', 'ROGUE', 'SORCERER', 'CLERIC', 'PALADIN', 'NAZGUL', 'WARLOCK', 'DRUID'];
+    BANNED_ARR = ['false', 'true'];
+
+    playersPerPageSelectId = 'playersPerPageSelect';
+    createNewAccountDivId = 'createNewAccountDiv';
+
+    editImageCellId = 'editImageCell';
+    deleteImageCellId = 'deleteImageCell';
+    playerNameCellId = 'playerNameCell';
+    playerRaceCellId = 'playerRaceCell';
+    playerProfessionCellId = 'playerProfessionCell';
+    playerBannedCellId = 'playerBannedCell';
+    playerTitleCellId = 'playerTitleCell';
+
+    bannedSelectId = 'bannedSelect';
+    professionSelectId = 'professionSelect';
+    raceSelectId = 'raceSelect';
+
+    nameInputId = 'nameInput';
+    titleInputId = 'titleInput';
+
+    createAccountNameId = 'createAccountName';
+    createAccountTitleId = 'createAccountTitle';
+    createAccountRaceSelectId = 'createAccountRaceSelect';
+    createAccountProfSelectId = 'createAccountProfSelect';
+    createAccountLevelId = 'createAccountLevel';
+    createAccountBirthdayId = 'createAccountBirthday';
+    createAccountBannedSelectId = 'createAccountBannedSelect';
+
+    window.onload = getPlayers(1);
+
+    function getPlayers(pageNumber) {
+        let page = pageNumber - 1;
+        $('#players_table_body').html("");
+        $.get("/rest/players?pageNumber=" + page + "&&pageSize=" + $(`#${playersPerPageSelectId} option:selected`).text(), function (data) {
+            $(".result").html(data);
+            for (var key in data) {
+                var obj = data[key];
+                let d = new Date(obj.birthday);
+                let ye = new Intl.DateTimeFormat('en', {year: 'numeric'}).format(d);
+                let mo = new Intl.DateTimeFormat('en', {month: 'short'}).format(d);
+                let da = new Intl.DateTimeFormat('en', {day: '2-digit'}).format(d);
+
+                $('#players_table_body').append(
+                    `<tr><td>` + obj.id + `</td>` +
+                    `<td id="${playerNameCellId}${obj.id}">` + obj.name + `</td>` +
+                    `<td id="${playerTitleCellId}${obj.id}">` + obj.title + `</td>` +
+                    `<td id="${playerRaceCellId}${obj.id}">` + obj.race + `</td>` +
+                    `<td id="${playerProfessionCellId}${obj.id}">` + obj.profession + `</td>` +
+                    `<td>` + obj.level + `</td>` +
+                    `<td>` + `${da}-${mo}-${ye}` + `</td>` +
+                    `<td id="${playerBannedCellId}${obj.id}">` + obj.banned + `</td>` +
+                    `<td id="${editImageCellId}${obj.id}">${generateEditImg(obj.id)}</td>` +
+                    `<td id="${deleteImageCellId}${obj.id}">${generateDeleteImg(obj.id, pageNumber)}</td></tr>`
+                );
+            }
+        })
+        addPagesButtons(pageNumber);
+        generateCreateNewAccountHTML();
+    }
+
+    function addPagesButtons(currentPage) {
+        $("#pagging_div").html("");
+        $.get("/rest/players/count", function (data) {
+            var pageQuantity = Math.ceil(data / $(`#${playersPerPageSelectId} option:selected`).text());
+            $("#pagging_div").append("<b style='padding-right: 3px'>Pages:</b>");
+            for (let i = 1; i <= pageQuantity; i++) {
+                if (currentPage == i) {
+                    $("#pagging_div").append(`<button onclick="getPlayers(${i})" style='color: red'>` + i + `</button>`)
+                } else {
+                    $("#pagging_div").append(`<button onclick="getPlayers(${i})">` + i + `</button>`)
+                }
+            }
+        });
+    }
+
+    function loadLastPage() {
+        $.get("/rest/players/count", function (data) {
+            var pageQuantity = Math.ceil(data / $(`#${playersPerPageSelectId} option:selected`).text());
+            getPlayers(pageQuantity);
+        });
+    }
+
+    function deleteUser(id, currentPage) {
+        $.ajax({
+            url: '/rest/players/' + id,
+            type: 'DELETE',
+            success: function (response) {
+                getPlayers(currentPage)
+            }
+        });
+    }
+
+    function saveUser(userId, currentPage) {
+        $.ajax({
+            url: '/rest/players/' + userId,
+            type: 'POST',
+            dataType: 'json',
+            processData: false,
+            contentType: 'application/json',
+            data: collectDataForSaveUserRequest(userId),
+            success: function (response, textStatus) {
+                if (textStatus === 'success') {
+                    updateCellsAfterSaveUser(userId, currentPage);
+                } else {
+                    alert("Something goes wrong...");
+                }
+            }
+        });
+    }
+
+    function generateCreateNewAccountHTML() {
+        let div = $(`#${createNewAccountDivId}`);
+        div.html("");
+        div.append(`<h3>Create new account</h3>`);
+        div.append(`<table class="createNewAccountTable">
+                <tr><td>Name:</td><td><input id="${createAccountNameId}"></td></tr>
+                <tr><td>Title:</td><td><input id="${createAccountTitleId}"></td></tr>
+                <tr><td>Race:</td><td><select id="${createAccountRaceSelectId}" class="accountSelect"/></td></tr>
+                <tr><td>Profession:</td><td><select id="${createAccountProfSelectId}" class="accountSelect"/></td></tr>
+                <tr><td>Level:</td><td><input id="${createAccountLevelId}" type="number"></td></tr>
+                <tr><td>Birthday:</td><td><input id="${createAccountBirthdayId}" type="date"></td></tr>
+                <tr><td>Banned:</td><td><select id="${createAccountBannedSelectId}" class="accountSelect"/></td></tr>
+                <tr><td/><td><button onclick="createUser()">Submit</button></td></tr>
+            </table>`);
+
+        let selectRace = $(`#createAccountRaceSelect`);
+        selectRace.append(`<option disabled>Choose race</option>`);
+        for (let i = 0; i < RACE_ARR.length; i++) {
+            selectRace.append(`<option>${RACE_ARR[i]}</option>`);
+        }
+
+        let selectProfession = $(`#createAccountProfSelect`);
+        selectProfession.append(`<option disabled>Choose profession</option>`);
+        for (let i = 0; i < PROFESSION_ARR.length; i++) {
+            selectProfession.append(`<option>${PROFESSION_ARR[i]}</option>`);
+        }
+
+        let selectBanned = $(`#createAccountBannedSelect`);
+        for (let i = 0; i < BANNED_ARR.length; i++) {
+            selectBanned.append(`<option>${BANNED_ARR[i]}</option>`);
+        }
+    }
+
+    function createUser() {
+        let nameVal = document.getElementById(`${createAccountNameId}`).value;
+        let titleVal = document.getElementById(`${createAccountTitleId}`).value;
+        let levelVal = document.getElementById(`${createAccountLevelId}`).value;
+        let birthdayVal = Date.parse(document.getElementById(`${createAccountBirthdayId}`).value);
+
+        let raceVal = document.getElementById(`${createAccountRaceSelectId}`);
+        raceVal = raceVal.options[raceVal.selectedIndex].text;
+        let professionVal = document.getElementById(`${createAccountProfSelectId}`);
+        professionVal = professionVal.options[professionVal.selectedIndex].text;
+        let bannedVal = document.getElementById(`${createAccountBannedSelectId}`);
+        bannedVal = bannedVal.options[bannedVal.selectedIndex].text;
+
+        if (!nameVal || !titleVal || !levelVal || !birthdayVal) {
+            alert("Some value is empty. Please fix it.");
+        }   else {
+            let requestData = JSON.stringify({
+                name: nameVal,
+                title: titleVal,
+                race: raceVal,
+                profession: professionVal,
+                birthday: birthdayVal,
+                banned: bannedVal,
+                level: levelVal
+            });
+
+            console.log(requestData);
+
+            $.ajax({
+                url: '/rest/players/',
+                type: 'POST',
+                dataType: 'json',
+                processData: false,
+                contentType: 'application/json',
+                data: requestData,
+                success: function (response, textStatus) {
+                    if (textStatus === 'success') {
+                        loadLastPage();
+                    } else {
+                        alert("Something goes wrong with create user...");
+                    }
+                }
+            });
+        }
+    }
+
+    function collectDataForSaveUserRequest(userId) {
+        let userName = $(`#${nameInputId}${userId}`).val();
+        let userTitle = $(`#${titleInputId}${userId}`).val();
+        let userRace = $(`#${raceSelectId}${userId} option:selected`).text()
+        let userProfession = $(`#${professionSelectId}${userId} option:selected`).text();
+        let userBanned = $(`#${bannedSelectId}${userId} option:selected`).text();
+
+        return JSON.stringify({
+            id: userId,
+            name: userName,
+            title: userTitle,
+            race: userRace,
+            profession: userProfession,
+            banned: userBanned
+        });
+    }
+
+    function onEditButtonPress(userId) {
+        changeEditImageToSaveImage(userId);
+        doNameEditable(userId)
+        doTitleEditable(userId);
+        doPlayerRaceEditable(userId);
+        doPlayerProfessionEditable(userId);
+        doPlayerBannedEditable(userId);
+    }
+
+    function changeEditImageToSaveImage(userId) {
+        id = `#${editImageCellId}${userId}`;
+        $(id).html("");
+        $(id).append(`<img src="../img/save.png" class="editdelete" onclick="saveUser(${userId})">`);
+        id = `#${deleteImageCellId}${userId}`;
+        $(id).html("");
+    }
+
+    function doNameEditable(userId) {
+        id = `#${playerNameCellId}${userId}`;
+        cellText = $(id).text();
+        $(id).html("");
+        $(id).append(`<input id='${nameInputId}${userId}' type="text" value="${cellText}">`);
+    }
+
+    function doTitleEditable(userId) {
+        id = `#${playerTitleCellId}${userId}`;
+        cellText = $(id).text();
+        $(id).html("");
+        $(id).append(`<input id='${titleInputId}${userId}' type="text" value="${cellText}">`);
+    }
+
+    function doPlayerRaceEditable(userId) {
+        id = `#${playerRaceCellId}${userId}`;
+        selectId = `${raceSelectId}${userId}`;
+        cellText = $(id).text();
+        $(id).html("");
+        $(id).append(`<select id='${selectId}'>
+        </select>`);
+        for (let i = 0; i < RACE_ARR.length; i++) {
+            if (RACE_ARR[i] === cellText) {
+                $(`#${selectId}`).append(`<option selected>${RACE_ARR[i]}</option>`);
+            } else {
+                $(`#${selectId}`).append(`<option>${RACE_ARR[i]}</option>`);
+            }
+        }
+    }
+
+    function doPlayerProfessionEditable(userId) {
+        id = `#${playerProfessionCellId}${userId}`;
+        selectId = `${professionSelectId}${userId}`;
+        cellText = $(id).text();
+        $(id).html("");
+        $(id).append(`<select id="${selectId}">
+        </select>`);
+        for (let i = 0; i < PROFESSION_ARR.length; i++) {
+            if (PROFESSION_ARR[i] === cellText) {
+                $(`#${selectId}`).append(`<option selected>${PROFESSION_ARR[i]}</option>`);
+            } else {
+                $(`#${selectId}`).append(`<option>${PROFESSION_ARR[i]}</option>`);
+            }
+        }
+    }
+
+    function doPlayerBannedEditable(userId) {
+        id = `#${playerBannedCellId}${userId}`;
+        selectId = `${bannedSelectId}${userId}`;
+        cellText = $(id).text();
+        $(id).html("");
+        $(id).append(`<select id="${selectId}">
+        </select>`);
+        for (let i = 0; i < BANNED_ARR.length; i++) {
+            if (BANNED_ARR[i] === cellText) {
+                $(`#${selectId}`).append(`<option selected>${BANNED_ARR[i]}</option>`);
+            } else {
+                $(`#${selectId}`).append(`<option>${BANNED_ARR[i]}</option>`);
+            }
+        }
+    }
+
+    function updateCellsAfterSaveUser(userId, currentPage) {
+        updateCellTextValue($(`#${playerNameCellId}${userId}`), $(`#${nameInputId}${userId}`).val());
+        updateCellTextValue($(`#${playerTitleCellId}${userId}`), $(`#${titleInputId}${userId}`).val());
+        updateCellTextValue($(`#${playerRaceCellId}${userId}`), $(`#${raceSelectId}${userId} option:selected`).text());
+        updateCellTextValue($(`#${playerProfessionCellId}${userId}`), $(`#${professionSelectId}${userId} option:selected`).text());
+        updateCellTextValue($(`#${playerBannedCellId}${userId}`), $(`#${bannedSelectId}${userId} option:selected`).text());
+
+        id = `#${editImageCellId}${userId}`;
+        $(id).html("");
+        $(id).append(generateEditImg(userId));
+
+        id = `#${deleteImageCellId}${userId}`;
+        $(id).html("");
+        $(id).append(generateDeleteImg(userId, currentPage));
+    }
+
+    function updateCellTextValue(cellId, value) {
+        $(cellId).html("");
+        $(cellId).append(`${value}`);
+    }
+
+    function generateEditImg(userId) {
+        return `<img src="../img/edit.png" alt="edit" class="editdelete" onclick="onEditButtonPress(${userId})">`;
+    }
+
+    function generateDeleteImg(userId, currentPage) {
+        return `<img src="../img/delete.png" alt="delete" class="editdelete" onclick="deleteUser(${userId}, ${currentPage})">`;
+    }
+
+</script>
+</body>
+</html>
